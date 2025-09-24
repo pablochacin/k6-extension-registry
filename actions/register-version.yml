@@ -1,0 +1,45 @@
+name: 'Update Extension Registry Version'
+description: 'Add a new version to a module in the k6 extension registry via centralized workflow'
+author: 'Grafana Labs'
+
+inputs:
+  module:
+    description: 'The module name to update (e.g., github.com/grafana/xk6-sql)'
+    required: true
+  version:
+    description: 'The version to add (e.g., v1.0.6)'
+    required: true
+  token:
+    description: 'GitHub token with permissions to trigger workflows'
+    required: true
+  release-url:
+    description: 'URL of the release (optional, used for PR context)'
+    required: false
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Trigger registry update workflow
+      uses: peter-evans/repository-dispatch@v3
+      with:
+        token: ${{ inputs.token }}
+        repository: grafana/k6-extension-registry
+        event-type: extension_version_update
+        client-payload: |
+          {
+            "module": "${{ inputs.module }}",
+            "version": "${{ inputs.version }}",
+            "release_url": "${{ inputs.release-url }}"
+          }
+
+    - name: Log dispatch
+      shell: bash
+      run: |
+        echo "✅ Triggered registry update workflow for:"
+        echo "  Module: ${{ inputs.module }}"
+        echo "  Version: ${{ inputs.version }}"
+        echo "Check the workflow runs at: https://github.com/grafana/k6-extension-registry/actions"
+
+branding:
+  icon: 'package'
+  color: 'orange'
