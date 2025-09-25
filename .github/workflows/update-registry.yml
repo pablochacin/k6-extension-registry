@@ -3,6 +3,7 @@ name: Update Registry
 on:
   repository_dispatch:
     types: [extension_version_update]
+  workflow_call:
   workflow_dispatch:
     inputs:
       module:
