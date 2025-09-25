@@ -28,15 +28,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate GitHub App Token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.K6_EXTENSION_REGISTRY_UPDATER_ID }}
-          private-key: ${{ secrets.K6_EXTENSION_REGISTRY_UPDATER_PEM }}
 
       - name: Extract inputs
         id: inputs
@@ -132,7 +123,6 @@ jobs:
         id: create-pr
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ steps.app-token.outputs.token }}
           title: 'Add ${{ steps.inputs.outputs.version }} to ${{ steps.inputs.outputs.module }}'
           body: |
             Automatically adds version to the k6 extension registry.
@@ -167,6 +157,5 @@ jobs:
             --squash \
             --subject "Add ${{ steps.inputs.outputs.version }} to ${{ steps.inputs.outputs.module }}" \
             --body "Auto-merged registry update from trusted source"
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
 
