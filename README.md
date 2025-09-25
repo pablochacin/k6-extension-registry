@@ -97,5 +97,5 @@ Use the [register-version](./actions/register-version.yml) action to automatical
 |-------|-------------|----------|---------|
 | `module` | The module name to update (e.g., `github.com/grafana/xk6-sql`) | Yes | - |
 | `version` | The version to add (e.g., `v1.0.6`) | Yes | - |
+| `repository-url` | URL of the source repository (used for validating auto-merge) | No | - |
 | `release-url` | URL of the release (used for PR context) | No | - |
-

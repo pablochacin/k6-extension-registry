@@ -12,6 +12,9 @@ inputs:
   token:
     description: 'GitHub token with permissions to trigger workflows'
     required: true
+  repository-url:
+    description: 'URL of the source repository (optional, used to validate if the change is trusted)'
+    required: false
   release-url:
     description: 'URL of the release (optional, used for PR context)'
     required: false
@@ -29,16 +32,9 @@ runs:
           {
             "module": "${{ inputs.module }}",
             "version": "${{ inputs.version }}",
+            "repository_url": "${{ inputs.repository-url }}",
             "release_url": "${{ inputs.release-url }}"
           }
-
-    - name: Log dispatch
-      shell: bash
-      run: |
-        echo "✅ Triggered registry update workflow for:"
-        echo "  Module: ${{ inputs.module }}"
-        echo "  Version: ${{ inputs.version }}"
-        echo "Check the workflow runs at: https://github.com/grafana/k6-extension-registry/actions"
 
 branding:
   icon: 'package'

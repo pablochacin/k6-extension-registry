@@ -11,6 +11,11 @@ on:
       version:
         description: 'The version to add (e.g., v1.0.6)'
         required: true
+      auto_merge:
+        description: 'Enable auto-merge for trusted sources'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -38,11 +43,15 @@ jobs:
           if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             echo "module=${{ github.event.client_payload.module }}" >> $GITHUB_OUTPUT
             echo "version=${{ github.event.client_payload.version }}" >> $GITHUB_OUTPUT
+            echo "repository_url=${{ github.event.client_payload.repository_url }}" >> $GITHUB_OUTPUT
             echo "release_url=${{ github.event.client_payload.release_url }}" >> $GITHUB_OUTPUT
+            echo "auto_merge=true" >> $GITHUB_OUTPUT
           else
             echo "module=${{ github.event.inputs.module }}" >> $GITHUB_OUTPUT
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+            echo "repository_url=" >> $GITHUB_OUTPUT
             echo "release_url=" >> $GITHUB_OUTPUT
+            echo "auto_merge=${{ github.event.inputs.auto_merge }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Install yq
@@ -51,6 +60,51 @@ jobs:
           sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
           yq --version
+
+      - name: Validate source repository
+        id: validate-source
+        run: |
+          ORGANIZATION="${{ github.repository_owner }}"
+          REPOSITORY_URL="${{ steps.inputs.outputs.repository_url }}"
+          MODULE="${{ steps.inputs.outputs.module }}"
+
+          echo "Validating source repository..."
+          echo "Repository URL: $REPOSITORY_URL"
+          echo "Module: $MODULE"
+
+          # Check if this is a trusted source
+          TRUSTED="false"
+
+          # Validation 1: Repository URL is from the same organization
+          if [[ "$REPOSITORY_URL" =~ ^https://github\.com/${ORGANIZATION}/ ]]; then
+            echo "✅ Repository URL is from ${ORGANIZATION} organization"
+            TRUSTED="true"
+          fi
+
+          # Validation 2: Module path is from the same organization
+          if [[ "$MODULE" =~ ^github\.com/${ORGANIZATION}/ ]]; then
+            echo "✅ Module is from ${ORGANIZATION} organization"
+            TRUSTED="true"
+          fi
+
+          # Validation 3: Cross-check repository URL matches module path
+          if [[ "$REPOSITORY_URL" != "" && "$MODULE" =~ ^github\.com/${ORGANIZATION}/ ]]; then
+            if [[ "$REPOSITORY_URL" =~ ^https://${MODULE}(\.git)?$ ]]; then
+              echo "✅ Repository URL matches module path"
+            else
+              echo "⚠️  Repository URL ($REPOSITORY_URL) does not match expected pattern for module ($MODULE)"
+              echo "This may indicate a security issue - disabling auto-merge"
+              TRUSTED="false"
+            fi
+          fi
+
+          echo "trusted=$TRUSTED" >> $GITHUB_OUTPUT
+
+          if [[ "$TRUSTED" == "true" ]]; then
+            echo "🚀 Auto-merge will be enabled"
+          else
+            echo "🔒 Auto-merge disabled - manual review required"
+          fi
 
       - name: Update registry with new version
         id: update-registry
@@ -84,6 +138,7 @@ jobs:
             
             **Module:** ${{ steps.inputs.outputs.module }}
             **Version:** ${{ steps.inputs.outputs.version }}
+            ${{ steps.inputs.outputs.repository_url && format('**Repository:** {0}', steps.inputs.outputs.repository_url) || '' }}
             ${{ steps.inputs.outputs.release_url && format('**Release:** {0}', steps.inputs.outputs.release_url) || '' }}
 
             This PR was created automatically via the registry update workflow.
@@ -91,3 +146,26 @@ jobs:
           commit-message: 'Add ${{ steps.inputs.outputs.version }} for ${{ steps.inputs.outputs.module }}'
           labels: |
             automated
+            ${{ steps.validate-source.outputs.trusted == 'true' && steps.inputs.outputs.auto_merge == 'true' && 'auto-merge-enabled' || 'manual-review-required' }}
+
+      - name: auto-merge
+        if: |
+          steps.check-changes.outputs.registry-changed == 'true' && 
+          steps.create-pr.outputs.pull-request-number &&
+          steps.validate-source.outputs.trusted == 'true' &&
+          steps.inputs.outputs.auto_merge == 'true'
+        run: |
+          echo "🚀 Enabling auto-merge for trusted source..."
+          echo "PR Number: ${{ steps.create-pr.outputs.pull-request-number }}"
+          echo "Module: ${{ steps.inputs.outputs.module }}"
+          echo "Version: ${{ steps.inputs.outputs.version }}"
+          
+          # Enable auto-merge with squash strategy
+          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} \
+            --auto \
+            --squash \
+            --subject "Add ${{ steps.inputs.outputs.version }} to ${{ steps.inputs.outputs.module }}" \
+            --body "Auto-merged registry update from trusted source"
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
