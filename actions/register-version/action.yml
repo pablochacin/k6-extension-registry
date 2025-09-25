@@ -26,7 +26,7 @@ runs:
       uses: peter-evans/repository-dispatch@v3
       with:
         token: ${{ inputs.token }}
-        repository: grafana/k6-extension-registry
+        repository: pablochacin/k6-extension-registry
         event-type: extension_version_update
         client-payload: |
           {
