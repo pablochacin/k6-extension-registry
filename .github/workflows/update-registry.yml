@@ -146,6 +146,8 @@ jobs:
           steps.create-pr.outputs.pull-request-number &&
           steps.validate-source.outputs.trusted == 'true' &&
           steps.inputs.outputs.auto_merge == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🚀 Enabling auto-merge for trusted source..."
           echo "PR Number: ${{ steps.create-pr.outputs.pull-request-number }}"
