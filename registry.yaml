@@ -133,3 +133,11 @@
   versions:
     - "v0.1.10"
     - "v0.1.11"
+
+- module: github.com/pablochacin/xk6-example
+  description: An example
+  tier: community
+  imports:
+    - k6/x/example
+  versions:
+    - "v0.0.1"
